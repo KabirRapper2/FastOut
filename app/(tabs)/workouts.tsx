@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Dumbbell, Plus, Timer, Trophy, Target, Lock } from 'lucide-react-native';
 import { useUserStore } from '@/store/userStore';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 const WORKOUT_TYPES = [
   { name: 'Strength Training', icon: Dumbbell, points: 25, premium: false },
@@ -13,10 +14,11 @@ const WORKOUT_TYPES = [
 ];
 
 export default function WorkoutsScreen() {
-  const { subscriptionStatus, addPoints, workoutHistory, addWorkout } = useUserStore();
+  const { subscriptionStatus, addPoints, workoutHistory, addWorkout, isUserPremium } = useUserStore();
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [duration, setDuration] = useState('');
   const [isLogging, setIsLogging] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const logWorkout = () => {
     if (!selectedType || !duration) {
@@ -27,11 +29,15 @@ export default function WorkoutsScreen() {
     const workoutType = WORKOUT_TYPES.find(type => type.name === selectedType);
     if (!workoutType) return;
 
-    if (workoutType.premium && subscriptionStatus === 'free') {
+    if (workoutType.premium && !isUserPremium()) {
       Alert.alert(
         'Premium Feature',
-        'This workout type is available for premium members only. Play our mini-game to unlock premium features temporarily!',
-        [{ text: 'OK' }]
+        'This workout type is available for premium members only. You can upgrade to premium or play our mini-game to unlock premium features temporarily!',
+        [
+          { text: 'Play Game', onPress: () => {} },
+          { text: 'Upgrade', onPress: () => setShowSubscriptionModal(true) },
+          { text: 'Cancel', style: 'cancel' }
+        ]
       );
       return;
     }
@@ -95,7 +101,7 @@ export default function WorkoutsScreen() {
                   style={[
                     styles.workoutTypeCard,
                     selectedType === type.name && styles.selectedCard,
-                    type.premium && subscriptionStatus === 'free' && styles.lockedCard
+                    type.premium && !isUserPremium() && styles.lockedCard
                   ]}
                   onPress={() => setSelectedType(type.name)}
                 >
@@ -105,7 +111,7 @@ export default function WorkoutsScreen() {
                     selectedType === type.name && styles.selectedText
                   ]}>
                     {type.name}
-                    {type.premium && subscriptionStatus === 'free' && (
+                    {type.premium && !isUserPremium() && (
                       <Lock size={12} color="#9CA3AF" />
                     )}
                   </Text>
@@ -158,7 +164,7 @@ export default function WorkoutsScreen() {
           )}
         </View>
 
-        {subscriptionStatus === 'free' && (
+        {!isUserPremium() && (
           <View style={styles.upgradePrompt}>
             <LinearGradient
               colors={['#10B981', '#059669']}
@@ -169,9 +175,20 @@ export default function WorkoutsScreen() {
               <Text style={styles.upgradeText}>
                 Access HIIT and CrossFit tracking with advanced analytics
               </Text>
+              <TouchableOpacity 
+                style={styles.upgradeButton}
+                onPress={() => setShowSubscriptionModal(true)}
+              >
+                <Text style={styles.upgradeButtonText}>View Plans</Text>
+              </TouchableOpacity>
             </LinearGradient>
           </View>
         )}
+
+        <SubscriptionModal
+          visible={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+        />
       </ScrollView>
     </LinearGradient>
   );
@@ -373,5 +390,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: 'rgba(255,255,255,0.9)',
     textAlign: 'center',
+  },
+  upgradeButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  upgradeButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: 'white',
   },
 });
