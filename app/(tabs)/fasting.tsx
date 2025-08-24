@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { Clock, Play, Pause, Square, Trophy, Lock } from 'lucide-react-native';
 import { useUserStore } from '@/store/userStore';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 const FASTING_PROTOCOLS = [
   { name: '16:8', duration: 16, description: 'Most popular protocol', points: 20, premium: false },
@@ -12,9 +13,10 @@ const FASTING_PROTOCOLS = [
 ];
 
 export default function FastingScreen() {
-  const { subscriptionStatus, addPoints, activeFast, setActiveFast } = useUserStore();
+  const { subscriptionStatus, addPoints, activeFast, setActiveFast, isUserPremium } = useUserStore();
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -34,11 +36,15 @@ export default function FastingScreen() {
   }, [isRunning, timeRemaining]);
 
   const startFast = (protocol: typeof FASTING_PROTOCOLS[0]) => {
-    if (protocol.premium && subscriptionStatus === 'free') {
+    if (protocol.premium && !isUserPremium()) {
       Alert.alert(
         'Premium Feature',
-        'This fasting protocol is available for premium members only. Play our mini-game to unlock premium features temporarily!',
-        [{ text: 'OK' }]
+        'This fasting protocol is available for premium members only. You can upgrade to premium or play our mini-game to unlock premium features temporarily!',
+        [
+          { text: 'Play Game', onPress: () => {} },
+          { text: 'Upgrade', onPress: () => setShowSubscriptionModal(true) },
+          { text: 'Cancel', style: 'cancel' }
+        ]
       );
       return;
     }
@@ -125,7 +131,7 @@ export default function FastingScreen() {
               key={index}
               style={[
                 styles.protocolCard,
-                protocol.premium && subscriptionStatus === 'free' && styles.lockedCard
+                protocol.premium && !isUserPremium() && styles.lockedCard
               ]}
               onPress={() => startFast(protocol)}
               disabled={activeFast !== null}
@@ -134,7 +140,7 @@ export default function FastingScreen() {
                 <View style={styles.protocolInfo}>
                   <Text style={styles.protocolTitle}>
                     {protocol.name}
-                    {protocol.premium && subscriptionStatus === 'free' && (
+                    {protocol.premium && !isUserPremium() && (
                       <Lock size={16} color="#9CA3AF" style={{ marginLeft: 8 }} />
                     )}
                   </Text>
@@ -152,7 +158,7 @@ export default function FastingScreen() {
           ))}
         </View>
 
-        {subscriptionStatus === 'free' && (
+        {!isUserPremium() && (
           <View style={styles.upgradePrompt}>
             <LinearGradient
               colors={['#10B981', '#059669']}
@@ -163,12 +169,20 @@ export default function FastingScreen() {
               <Text style={styles.upgradeText}>
                 Get access to advanced fasting protocols and detailed analytics
               </Text>
-              <TouchableOpacity style={styles.upgradeButton}>
+              <TouchableOpacity 
+                style={styles.upgradeButton}
+                onPress={() => setShowSubscriptionModal(true)}
+              >
                 <Text style={styles.upgradeButtonText}>View Plans</Text>
               </TouchableOpacity>
             </LinearGradient>
           </View>
         )}
+
+        <SubscriptionModal
+          visible={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+        />
       </ScrollView>
     </LinearGradient>
   );
